@@ -336,49 +336,18 @@ Data::Segment* TopoShape::getSubElement(const char* Type, unsigned long n) const
     return new ShapeSegment(getSubShape(temp.c_str()));
 }
 
-TopoDS_Shape TopoShape::getSubShape(const char* Type, bool silent) const
-{
-    auto res = shapeTypeAndIndex(Type);
-    return getSubShape(res.first,res.second,silent);
+TopoDS_Shape TopoShape::getSubShape(const char* Type, bool silent) const {
+    TopoShape s(*this);
+    s.Tag = 0;
+    return s.getSubTopoShape(Type,silent).getShape();
 }
 
-TopoDS_Shape TopoShape::getSubShape(TopAbs_ShapeEnum type, int index, bool silent) const
-{
-    if(index <= 0) {
-        if(silent)
-            return {};
-        // TODO: Is this message clear?  Should we complain about the negative index instead
-        Standard_Failure::Raise("Unsupported sub-shape type");
-    }
-
-    if (this->_Shape.IsNull()) {
-        if(silent)
-            return {};
-        Standard_Failure::Raise("Cannot get sub-shape from empty shape");
-    }
-
-    try {
-        if(type == TopAbs_SHAPE) {
-            int i=1;
-            for(TopoDS_Iterator it(_Shape);it.More();it.Next(),++i) {
-                if(i == index)
-                    return it.Value();
-            }
-        } else {
-            TopTools_IndexedMapOfShape anIndices;
-            TopExp::MapShapes(this->_Shape, type, anIndices);
-            if(index <= anIndices.Extent())
-                return anIndices.FindKey(index);
-        }
-    } catch(Standard_Failure &) {
-        if(silent)
-            return {};
-        throw;
-    }
-    if(!silent)
-        Standard_Failure::Raise("Index out of bound");
-    return {};
+TopoDS_Shape TopoShape::getSubShape(TopAbs_ShapeEnum type, int idx, bool silent) const {
+    TopoShape s(*this);
+    s.Tag = 0;
+    return s.getSubTopoShape(type,idx,silent).getShape();
 }
+
 
 unsigned long TopoShape::countSubShapes(const char* Type) const
 {
@@ -557,44 +526,44 @@ PyObject * TopoShape::getPyObject()
 {
     Base::PyObjectBase* prop = nullptr;
     if (_Shape.IsNull()) {
-        prop = new TopoShapePy(new TopoShape(_Shape));
+        prop = new TopoShapePy(new TopoShape(*this));
     }
     else {
         TopAbs_ShapeEnum type = _Shape.ShapeType();
         switch (type)
         {
         case TopAbs_COMPOUND:
-            prop = new TopoShapeCompoundPy(new TopoShape(_Shape));
+            prop = new TopoShapeCompoundPy(new TopoShape(*this));
             break;
         case TopAbs_COMPSOLID:
-            prop = new TopoShapeCompSolidPy(new TopoShape(_Shape));
+            prop = new TopoShapeCompSolidPy(new TopoShape(*this));
             break;
         case TopAbs_SOLID:
-            prop = new TopoShapeSolidPy(new TopoShape(_Shape));
+            prop = new TopoShapeSolidPy(new TopoShape(*this));
             break;
         case TopAbs_SHELL:
-            prop = new TopoShapeShellPy(new TopoShape(_Shape));
+            prop = new TopoShapeShellPy(new TopoShape(*this));
             break;
         case TopAbs_FACE:
-            prop = new TopoShapeFacePy(new TopoShape(_Shape));
+            prop = new TopoShapeFacePy(new TopoShape(*this));
             break;
         case TopAbs_WIRE:
-            prop = new TopoShapeWirePy(new TopoShape(_Shape));
+            prop = new TopoShapeWirePy(new TopoShape(*this));
             break;
         case TopAbs_EDGE:
-            prop = new TopoShapeEdgePy(new TopoShape(_Shape));
+            prop = new TopoShapeEdgePy(new TopoShape(*this));
             break;
         case TopAbs_VERTEX:
-            prop = new TopoShapeVertexPy(new TopoShape(_Shape));
+            prop = new TopoShapeVertexPy(new TopoShape(*this));
             break;
         case TopAbs_SHAPE:
         default:
-            prop = new TopoShapePy(new TopoShape(_Shape));
+            prop = new TopoShapePy(new TopoShape(*this));
             break;
         }
     }
 
-    prop->setNotTracking();
+    prop->setNotTracking(); // TODO: Does this still belong here?
     return prop;
 }
 
